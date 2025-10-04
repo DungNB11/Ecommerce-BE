@@ -5,17 +5,19 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.*;
 
 @Data
 @Entity
-@Table(name = "user")
+@Table(name = "users")
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -27,11 +29,32 @@ public class User implements UserDetails {
     private String email;
     private String password;
     private String fullName;
+    private String avatar;
+    private String phoneNumber;
+    private LocalDate dob;
+
+    @Enumerated(EnumType.STRING)
+    private Gender gender;
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
     private Set<Role> roles = new HashSet<>();
     @Column(nullable = false)
     private boolean active = true;
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<Address> addresses = new ArrayList<>();
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    private Cart cart;
+
+    @OneToMany(mappedBy = "user")
+    private List<Order> orders = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user")
+    private List<Review> reviews = new ArrayList<>();
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -41,9 +64,7 @@ public class User implements UserDetails {
         authorities.addAll(roles.stream().map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName())).toList());
 
         //add permissions
-        authorities.addAll(roles.stream().flatMap(role -> role.getPermissions().stream())
-                .map(permission -> new SimpleGrantedAuthority(permission.getName()))
-                .toList());
+        authorities.addAll(roles.stream().flatMap(role -> role.getPermissions().stream()).map(permission -> new SimpleGrantedAuthority(permission.getName())).toList());
 
         return authorities;
     }
